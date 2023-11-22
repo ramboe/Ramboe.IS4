@@ -1,0 +1,84 @@
+version: "3.3"
+
+services:
+  # Reverse Proxy +  SSL cert generation
+  traefik:
+    image: "traefik:v2.10"
+    container_name: "traefik"
+    restart: always
+    command:
+      # foundation [don't touch]
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+      - "--accesslog=${TRAEFIK_ACCESS_LOGS_ENABLE}"
+      - "--accesslog.filePath=/logs/access.log"
+
+      # the email connected to your domain
+      - "--certificatesresolvers.myresolver.acme.email=${TRAEFIK_DOMAIN_CONTACTMAIL}" #adjust
+
+    # [don't touch]
+    ports:
+      - "443:443"
+      - "80:80"
+      - "8080:8080"
+    
+    # [don't touch]
+    volumes:
+      - "./letsencrypt:/letsencrypt"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./logs/:/logs/"
+    labels:
+      # Dashboard
+      - "traefik.enable=true"
+
+      - "traefik.http.routers.traefik.rule=Host(`traefik.${TRAEFIK_DOMAIN_NAME}`)" #adjust
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.tls.certresolver=myresolver"
+
+      # global redirect to https [don't touch]
+      - "traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)"
+      - "traefik.http.routers.http-catchall.entrypoints=web"
+      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
+
+      # middleware redirect [don't touch]
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+
+  authority:
+    image: "ramboe/ramboe-is4:latest" #adjust
+    restart: always
+    container_name: "authority"
+    depends_on:
+      - postgresdb
+
+    ports:
+      - "80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - "ConnectionStrings:PostgreSQL=Host=postgresdb; Port=5432; Database=auth; User Id=${POSTGRES_USER}; Password=${POSTGRES_PASSWORD}"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.authority.rule=Host(`is4.${TRAEFIK_DOMAIN_NAME}`)" # Change the host url here
+      - "traefik.http.routers.authority.entrypoints=websecure"
+      - "traefik.http.routers.authority.tls.certresolver=myresolver"
+  
+  # postgres sql container
+  postgresdb:
+    image: postgres:14.1-alpine
+    restart: always
+    environment:
+      #adjust
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
+    ports:
+      - '5432:5432'
+    volumes:
+      - db:/var/lib/postgresql/data
+
+volumes:
+  db:
+    driver: local
