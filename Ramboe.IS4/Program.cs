@@ -4,24 +4,29 @@ using Ramboe.IS4.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddIdentityServer()
+var issuer = builder.Configuration.GetSection("Is4:IssuerUri").Get<string>();
+
+builder.Services.AddIdentityServer(options => {
+           options.IssuerUri = issuer;
+       })
        .AddInMemoryApiResources(Configuration.GetApis())
        .AddInMemoryClients(Configuration.GetClients())
        .AddInMemoryApiScopes(Configuration.GetScopes())
        .AddResourceOwnerValidator<ResourceOwnerPasswordValidator>()//needed for password validation
        .AddProfileService<ProfileService>()
+
        // .AddSigningCredential()
        .AddDeveloperSigningCredential();//we need a key to sign the token with
 
-var  MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
+var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
 
-builder.Services.AddCors(options =>
-{
+builder.Services.AddCors(options => {
     options.AddPolicy(name: MyAllowSpecificOrigins,
-    policy  => {
+    policy => {
         policy.AllowAnyOrigin();
         policy.AllowAnyHeader();
         policy.AllowAnyMethod();
+
         // policy.WithOrigins("http://example.com", "http://www.contoso.com");
     });
 });
@@ -48,6 +53,6 @@ app.UseCors(MyAllowSpecificOrigins);
 
 app.UseIdentityServer();
 
-app.MapGet("/", () => "Authority running");
+app.MapGet("/", () => "Authority running, issuer: " + issuer);
 
 app.Run();

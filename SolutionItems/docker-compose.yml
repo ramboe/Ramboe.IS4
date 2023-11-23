@@ -49,7 +49,7 @@ services:
       - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
 
   authority:
-    image: "ramboe/ramboe-is4:latest" #adjust
+    image: "ramboe/ramboe-is4:1.0.1" #adjust
     restart: always
     container_name: "authority"
     depends_on:
@@ -60,9 +60,10 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - "ConnectionStrings:PostgreSQL=Host=postgresdb; Port=5432; Database=auth; User Id=${POSTGRES_USER}; Password=${POSTGRES_PASSWORD}"
+      - "Is4:IssuerUri=https://${TRAEFIK_DOMAIN_NAME}"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.authority.rule=Host(`is4.${TRAEFIK_DOMAIN_NAME}`)" # Change the host url here
+      - "traefik.http.routers.authority.rule=Host(`${TRAEFIK_DOMAIN_NAME}`)" # Change the host url here
       - "traefik.http.routers.authority.entrypoints=websecure"
       - "traefik.http.routers.authority.tls.certresolver=myresolver"
   
