@@ -26,8 +26,6 @@ builder.Services.AddCors(options => {
         policy.AllowAnyOrigin();
         policy.AllowAnyHeader();
         policy.AllowAnyMethod();
-
-        // policy.WithOrigins("http://example.com", "http://www.contoso.com");
     });
 });
 
@@ -45,6 +43,7 @@ using var scope = app.Services.CreateScope();
 
 var serviceProvider = scope.ServiceProvider;
 var userContext = serviceProvider.GetRequiredService<UserContext>();
+userContext.Database.EnsureCreated();
 
 DatabaseSeeder.Seed(userContext);
 #endregion
